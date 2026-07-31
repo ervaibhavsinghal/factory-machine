@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AlertCircle } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import AuthFormShell from "@/components/auth/AuthFormShell";
@@ -10,13 +11,29 @@ import PasswordField from "@/components/auth/PasswordField";
 import Checkbox from "@/components/auth/Checkbox";
 import PrimaryButton from "@/components/auth/PrimaryButton";
 
-export default function LoginPage() {
+function LoginFormContent() {
+  const searchParams = useSearchParams();
+  const roleParam = searchParams.get("role");
+
   const [email, setEmail] = useState("manager");
   const [password, setPassword] = useState("manager123");
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
+
+  useEffect(() => {
+    if (roleParam === "technician") {
+      setEmail("tech1");
+      setPassword("tech123");
+    } else if (roleParam === "owner") {
+      setEmail("owner");
+      setPassword("owner123");
+    } else if (roleParam === "manager") {
+      setEmail("manager");
+      setPassword("manager123");
+    }
+  }, [roleParam]);
 
   function setDemoCredentials(u: string, p: string) {
     setEmail(u);
@@ -240,5 +257,19 @@ export default function LoginPage() {
         </div>
       </AuthFormShell>
     </AuthLayout>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen grid place-items-center bg-white text-slate-500 text-xs font-medium">
+          Loading Sign In...
+        </div>
+      }
+    >
+      <LoginFormContent />
+    </Suspense>
   );
 }
