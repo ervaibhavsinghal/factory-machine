@@ -1,2 +1,15 @@
 @import "tailwindcss";
 @import "./app.css";
+
+@theme {
+  --color-brand-indigo: #4F46E5;
+  --color-brand-indigo-hover: #4338CA;
+  --color-brand-indigo-soft: #EEF2FF;
+  --color-brand-navy: #0B1437;
+  --color-brand-navy-deep: #070E28;
+  --color-brand-heading: #1E293B;
+  --color-brand-subtext: #64748B;
+  --color-brand-error: #EF4444;
+  --color-brand-input-border: #E2E8F0;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}

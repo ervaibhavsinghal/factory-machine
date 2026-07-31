@@ -2,36 +2,56 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  Eye,
-  EyeOff,
-  AlertCircle,
-} from "lucide-react";
+import { AlertCircle } from "lucide-react";
+import AuthLayout from "@/components/auth/AuthLayout";
+import AuthFormShell from "@/components/auth/AuthFormShell";
+import TextField from "@/components/auth/TextField";
+import PasswordField from "@/components/auth/PasswordField";
+import Checkbox from "@/components/auth/Checkbox";
+import PrimaryButton from "@/components/auth/PrimaryButton";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("manager");
+  const [email, setEmail] = useState("manager");
   const [password, setPassword] = useState("manager123");
-  const [showPassword, setShowPassword] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
 
-  async function submit(e: React.FormEvent) {
+  function setDemoCredentials(u: string, p: string) {
+    setEmail(u);
+    setPassword(p);
+    setError("");
+    setFieldErrors({});
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    setBusy(true);
+
+    const errs: { email?: string; password?: string } = {};
+    if (!email) errs.email = "Email or username is required";
+    if (!password) errs.password = "Password is required";
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
+    setLoading(true);
+
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim(), password }),
+        body: JSON.stringify({ username: email.trim(), password }),
       });
+
       const data = await res.json();
+
       if (!res.ok) {
         setError(data.error || "Login failed. Please check your username and password.");
-        setBusy(false);
+        setLoading(false);
         return;
       }
+
       if (data.token) {
         try {
           document.cookie = `fm.session=${data.token}; path=/; max-age=43200; SameSite=Lax`;
@@ -39,57 +59,34 @@ export default function LoginPage() {
           // ignore
         }
       }
+
       const dest =
-        data.user.role === "technician"
+        data.user?.role === "technician"
           ? "/dashboard/maintenance/tickets"
           : "/dashboard";
       window.location.href = dest;
     } catch {
-      setError("Something went wrong. Please check your connection.");
-      setBusy(false);
+      setError("Something went wrong. Please check your network connection.");
+      setLoading(false);
     }
   }
 
-  function setDemoCredentials(u: string, p: string) {
-    setUsername(u);
-    setPassword(p);
-    setError("");
-  }
-
   return (
-    <div className="min-h-screen w-full bg-white text-[#1C2434] antialiased font-sans grid grid-cols-1 lg:grid-cols-2">
-      
-      {/* LEFT COLUMN: Clean TailAdmin Sign In Form */}
-      <div className="flex flex-col justify-between p-6 sm:p-10 lg:p-16 max-w-xl mx-auto w-full min-h-screen">
-        {/* Top Logo */}
-        <div className="pt-2 pb-4">
-          <Link href="/" className="inline-flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#3C50E0] text-white grid place-items-center shadow-xs">
-              <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                <path d="M4 19h4V9H4v10zm6 0h4V5h-4v14zm6 0h4v-7h-4v7z" />
-              </svg>
-            </div>
-            <span className="font-bold text-xl text-[#1C2434] tracking-tight">TailAdmin</span>
-          </Link>
-        </div>
-
-        {/* Form Container */}
-        <div className="my-auto py-4">
-          <div className="mb-8">
-            <h1 className="text-3xl sm:text-4xl font-bold text-[#1C2434] tracking-tight">
-              Sign In
-            </h1>
-            <p className="text-sm text-slate-500 mt-2 font-normal">
-              Enter your email and password to sign in!
-            </p>
-          </div>
-
-          {/* Social Login Buttons matching TailAdmin screenshot */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+    <AuthLayout
+      brandName="Factory Machine"
+      tagline="Operational intelligence for the modern factory floor."
+    >
+      <AuthFormShell
+        title="Sign In"
+        subtitle="Enter your email and password to sign in!"
+      >
+        <div className="space-y-5">
+          {/* Social Quick Login Buttons */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => setDemoCredentials("manager", "manager123")}
-              className="py-3 px-4 rounded-xl border border-slate-200 bg-[#F8FAFC] hover:bg-slate-100 text-xs sm:text-sm font-medium text-[#1C2434] flex items-center justify-center gap-2.5 transition-colors shadow-2xs"
+              className="py-2.5 px-3.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-brand-heading flex items-center justify-center gap-2 transition-all shadow-xs active:scale-[0.98]"
             >
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                 <path
@@ -109,32 +106,32 @@ export default function LoginPage() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                 />
               </svg>
-              <span>Sign in with Google</span>
+              <span>Manager Login</span>
             </button>
 
             <button
               type="button"
               onClick={() => setDemoCredentials("tech1", "tech123")}
-              className="py-3 px-4 rounded-xl border border-slate-200 bg-[#F8FAFC] hover:bg-slate-100 text-xs sm:text-sm font-medium text-[#1C2434] flex items-center justify-center gap-2.5 transition-colors shadow-2xs"
+              className="py-2.5 px-3.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-brand-heading flex items-center justify-center gap-2 transition-all shadow-xs active:scale-[0.98]"
             >
-              <svg className="w-4 h-4 fill-[#1C2434] shrink-0" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 fill-brand-heading shrink-0" viewBox="0 0 24 24">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
               </svg>
-              <span>Sign in with X</span>
+              <span>Technician Login</span>
             </button>
           </div>
 
-          {/* Quick Role Fill Pills bar */}
-          <div className="flex items-center justify-between text-xs text-slate-500 bg-slate-50 p-2.5 rounded-lg mb-6 border border-slate-100">
-            <span className="font-medium text-slate-600">Quick Demo User:</span>
+          {/* Quick Role Fill Selector */}
+          <div className="flex items-center justify-between text-xs text-brand-subtext bg-brand-indigo-soft/60 p-2.5 rounded-xl border border-indigo-100">
+            <span className="font-semibold text-brand-indigo">Quick Demo Account:</span>
             <div className="flex items-center gap-1.5 font-medium">
               <button
                 type="button"
                 onClick={() => setDemoCredentials("manager", "manager123")}
-                className={`px-2 py-0.5 rounded transition-all ${
-                  username === "manager"
-                    ? "bg-[#3C50E0] text-white font-bold"
-                    : "text-slate-600 hover:text-[#3C50E0]"
+                className={`px-2 py-0.5 rounded-md transition-all ${
+                  email === "manager"
+                    ? "bg-brand-indigo text-white font-semibold shadow-xs"
+                    : "text-brand-heading hover:text-brand-indigo"
                 }`}
               >
                 Manager
@@ -143,10 +140,10 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setDemoCredentials("tech1", "tech123")}
-                className={`px-2 py-0.5 rounded transition-all ${
-                  username === "tech1"
-                    ? "bg-[#3C50E0] text-white font-bold"
-                    : "text-slate-600 hover:text-[#3C50E0]"
+                className={`px-2 py-0.5 rounded-md transition-all ${
+                  email === "tech1"
+                    ? "bg-brand-indigo text-white font-semibold shadow-xs"
+                    : "text-brand-heading hover:text-brand-indigo"
                 }`}
               >
                 Technician
@@ -155,10 +152,10 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setDemoCredentials("owner", "owner123")}
-                className={`px-2 py-0.5 rounded transition-all ${
-                  username === "owner"
-                    ? "bg-[#3C50E0] text-white font-bold"
-                    : "text-slate-600 hover:text-[#3C50E0]"
+                className={`px-2 py-0.5 rounded-md transition-all ${
+                  email === "owner"
+                    ? "bg-brand-indigo text-white font-semibold shadow-xs"
+                    : "text-brand-heading hover:text-brand-indigo"
                 }`}
               >
                 Owner
@@ -166,136 +163,82 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Or Divider */}
-          <div className="relative flex items-center justify-center mb-6">
+          {/* Divider */}
+          <div className="relative flex items-center justify-center my-2">
             <div className="w-full border-t border-slate-200" />
-            <span className="bg-white px-4 text-xs text-slate-400 font-normal absolute">Or</span>
+            <span className="bg-white px-3 text-xs text-slate-400 font-medium absolute">Or Sign In with Email</span>
           </div>
 
           {error && (
-            <div className="mb-5 rounded-lg bg-red-50 border border-red-200 text-red-700 p-3 text-xs font-medium flex items-center gap-2">
+            <div className="rounded-xl bg-red-50 border border-red-200 text-red-700 p-3.5 text-xs font-medium flex items-center gap-2.5 animate-fade-in-up">
               <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={submit} className="space-y-5">
-            {/* Email Input */}
-            <div>
-              <label className="block text-xs font-medium text-[#1C2434] mb-2">
-                Email<span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="info@gmail.com"
-                autoComplete="username"
-                required
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-[#1C2434] font-normal placeholder:text-slate-400 focus:outline-none focus:border-[#3C50E0] focus:ring-1 focus:ring-[#3C50E0] transition-all"
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            <TextField
+              label="Email or Username"
+              id="email"
+              name="email"
+              type="text"
+              required
+              placeholder="manager or info@company.com"
+              autoComplete="username"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: undefined });
+              }}
+              error={fieldErrors.email}
+            />
+
+            <PasswordField
+              label="Password"
+              id="password"
+              name="password"
+              required
+              placeholder="Enter your password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (fieldErrors.password) setFieldErrors({ ...fieldErrors, password: undefined });
+              }}
+              error={fieldErrors.password}
+            />
+
+            <div className="flex items-center justify-between pt-1">
+              <Checkbox
+                id="keepLoggedIn"
+                name="keepLoggedIn"
+                checked={keepLoggedIn}
+                onChange={setKeepLoggedIn}
+                label="Keep me logged in"
               />
-            </div>
-
-            {/* Password Input */}
-            <div>
-              <label className="block text-xs font-medium text-[#1C2434] mb-2">
-                Password<span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  autoComplete="current-password"
-                  required
-                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-[#1C2434] font-normal placeholder:text-slate-400 focus:outline-none focus:border-[#3C50E0] focus:ring-1 focus:ring-[#3C50E0] transition-all pr-11"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 p-0.5"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Checkbox and Forgot Password */}
-            <div className="flex items-center justify-between text-xs pt-1">
-              <label className="flex items-center gap-2 cursor-pointer text-slate-600 font-normal select-none">
-                <input
-                  type="checkbox"
-                  checked={keepLoggedIn}
-                  onChange={(e) => setKeepLoggedIn(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300 text-[#3C50E0] focus:ring-[#3C50E0]"
-                />
-                <span>Keep me logged in</span>
-              </label>
-
-              <Link href="/operator" className="text-[#3C50E0] font-normal hover:underline">
+              <Link
+                href="/operator"
+                className="text-xs font-semibold text-brand-indigo transition-colors hover:text-brand-indigo-hover hover:underline"
+              >
                 Forgot password?
               </Link>
             </div>
 
-            {/* Primary Sign In Button */}
-            <button
-              type="submit"
-              disabled={busy}
-              className="w-full rounded-lg bg-[#465FFF] hover:bg-[#3B52E8] py-3 text-sm font-medium text-white transition-colors disabled:opacity-60 flex items-center justify-center gap-2 mt-2 shadow-xs"
-            >
-              <span>{busy ? "Signing In…" : "Sign In"}</span>
-            </button>
+            <div className="pt-2">
+              <PrimaryButton loading={loading} type="submit">
+                Sign In
+              </PrimaryButton>
+            </div>
           </form>
 
-          <p className="text-xs text-slate-500 text-center mt-6 font-normal">
-            Don&apos;t have an account?{" "}
-            <Link href="/operator" className="text-[#3C50E0] font-normal hover:underline">
-              Sign Up
+          <p className="text-xs text-brand-subtext text-center pt-2 font-normal">
+            Need operator mode access?{" "}
+            <Link href="/operator" className="text-brand-indigo font-semibold hover:underline">
+              Operator Console
             </Link>
           </p>
         </div>
-
-        {/* Footer info */}
-        <div className="text-xs text-slate-400 py-2">
-          &copy; {new Date().getFullYear()} TailAdmin
-        </div>
-      </div>
-
-      {/* RIGHT COLUMN: TailAdmin Dark Navy Grid Banner */}
-      <div className="hidden lg:flex flex-col items-center justify-center bg-[#0C1427] text-white p-12 relative overflow-hidden min-h-screen">
-        {/* Grid Pattern Background */}
-        <div
-          className="absolute inset-0 opacity-20 pointer-events-none"
-          style={{
-            backgroundImage: `linear-gradient(to right, #1E293B 1px, transparent 1px), linear-gradient(to bottom, #1E293B 1px, transparent 1px)`,
-            backgroundSize: "48px 48px",
-          }}
-        />
-
-        {/* Subtle glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-[#3C50E0]/20 blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col items-center text-center max-w-sm space-y-4">
-          {/* Logo Box */}
-          <div className="w-16 h-16 rounded-2xl bg-[#3C50E0] grid place-items-center text-white shadow-2xl mb-1">
-            <svg className="w-8 h-8 fill-current" viewBox="0 0 24 24">
-              <path d="M4 19h4V9H4v10zm6 0h4V5h-4v14zm6 0h4v-7h-4v7z" />
-            </svg>
-          </div>
-
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            TailAdmin
-          </h2>
-
-          <p className="text-sm text-[#94A3B8] font-normal leading-relaxed max-w-xs">
-            Free and Open-Source Tailwind CSS Admin
-            <br />
-            Dashboard Template
-          </p>
-        </div>
-      </div>
-
-    </div>
+      </AuthFormShell>
+    </AuthLayout>
   );
 }
