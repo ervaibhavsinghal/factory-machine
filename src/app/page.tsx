@@ -18,7 +18,6 @@ export const dynamic = "force-dynamic";
 
 export default async function LandingPage() {
   const session = await getSession();
-  if (session) redirect("/dashboard");
 
   const cards = [
     {
@@ -86,12 +85,21 @@ export default async function LandingPage() {
               <Smartphone className="w-4 h-4" />
               <span>Operator Mode</span>
             </Link>
-            <Link
-              href="/login"
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-colors"
-            >
-              Sign In
-            </Link>
+            {session ? (
+              <Link
+                href="/dashboard"
+                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors"
+              >
+                Go to Dashboard
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-colors"
+              >
+                Sign In
+              </Link>
+            )}
           </div>
         </div>
       </header>
