@@ -83,3 +83,95 @@ factory-qr-app/
 │   └── telegram.ts                 # Telegram Bot API notification helper
 └── types/
     └── index.ts                    # Global TypeScript interfaces
+
+
+
+    ---
+## 5. Complete Database Schema (PostgreSQL DDL for Supabase)
+Execute this script in your Supabase SQL Editor:
+
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 1. FACILITIES TABLE (Plants & Warehouses)
+CREATE TABLE facilities (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    address TEXT,
+    wifi_ip_whitelist TEXT[], -- Array of allowed factory public IP ranges
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 2. USERS TABLE (Managers, Technicians, Security Guards)
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    facility_id UUID REFERENCES facilities(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    role VARCHAR(50) NOT NULL CHECK (role IN ('manager', 'technician', 'guard')),
+    pin_code VARCHAR(4) NOT NULL, -- 4-Digit Worker PIN for anti-spam verification
+    phone VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 3. MACHINES TABLE (Equipment Assets)
+CREATE TABLE machines (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    facility_id UUID REFERENCES facilities(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    model VARCHAR(255),
+    serial_number VARCHAR(255),
+    location_bay VARCHAR(255) NOT NULL,
+    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'maintenance', 'offline')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 4. TICKETS TABLE (Breakdown & Maintenance Logs)
+CREATE TABLE tickets (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    machine_id UUID REFERENCES machines(id) ON DELETE CASCADE,
+    assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+    urgency VARCHAR(20) NOT NULL CHECK (urgency IN ('low', 'medium', 'critical')),
+    category VARCHAR(50) NOT NULL CHECK (category IN ('electrical', 'mechanical', 'hydraulic', 'other')),
+    description TEXT,
+    photo_url TEXT,
+    status VARCHAR(50) DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved')),
+    reporter_pin VARCHAR(4) NOT NULL,
+    resolution_notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    resolved_at TIMESTAMP WITH TIME ZONE
+);
+
+-- 5. GATE_ENTRIES TABLE (Phase 3 Truck Management Module)
+CREATE TABLE gate_entries (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    facility_id UUID REFERENCES facilities(id) ON DELETE CASCADE,
+    truck_license_plate VARCHAR(50) NOT NULL,
+    driver_phone VARCHAR(50) NOT NULL,
+    carrier_name VARCHAR(255),
+    assigned_bay VARCHAR(50),
+    status VARCHAR(50) DEFAULT 'in_yard' CHECK (status IN ('waiting', 'in_yard', 'departed')),
+    entry_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    exit_time TIMESTAMP WITH TIME ZONE
+);
+
+-- INDEXES FOR FAST QUERY PERFORMANCE
+CREATE INDEX idx_tickets_machine ON tickets(machine_id);
+CREATE INDEX idx_tickets_status ON tickets(status);
+CREATE INDEX idx_machines_facility ON machines(facility_id);
+CREATE INDEX idx_gate_entries_facility ON gate_entries(facility_id);
+
+---
+## 6. UI & Wireframe Specifications
+1) Mobile Operator Reporting Page (/machine/[id])
+1.1) Machine Context Header: Read-only banner displaying Machine Name, Model, and Location Bay derived from URL parameters.
+1.2) Urgency Selector: 3 large side-by-side pill buttons (🟢 Low, 🟡 Medium, 🔴 CRITICAL).
+1.3) Issue Category Grid: 2x2 grid of touch targets (Electrical, Mechanical, Hydraulic, Other).
+1.4) Camera Input: Button triggering native smartphone rear camera (<input type="file" accept="image/*" capture="environment">).
+1.5) Worker Security Field: Numeric input field for 4-digit Worker PIN.
+1.6) Submit Action: Full-width sticky button anchored at the bottom of the screen.
+
+2) Manager Kanban Board (/dashboard/tickets)
+2.1) Columns: Open (Red accent), In Progress (Yellow accent), Resolved (Green accent).
+2.2) Card Details: Ticket ID, Urgency badge, Category icon, Machine Name, Location, Relative Timestamp (e.g., "5 mins ago"), Technician assignee dropdown, and Image preview thumbnail.
+2.3) Action Modal: Click on a ticket to inspect full-size photo, assign technicians, or type resolution notes to close the ticket.
