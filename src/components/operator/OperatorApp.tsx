@@ -1,6 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import {
+  QrCode,
+  Camera,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Search,
+  Building2,
+  MapPin,
+  RefreshCw,
+  X,
+  FileText,
+  ShieldCheck,
+  Home,
+  Sparkles,
+  Zap,
+  Wrench,
+  Droplet,
+  Grid,
+} from "lucide-react";
 
 type Machine = {
   code: string;
@@ -29,24 +50,26 @@ type Ticket = {
 };
 
 const URGENCIES = [
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "critical", label: "CRITICAL" },
+  { value: "low", label: "Low", icon: "🟢", color: "border-emerald-200 bg-emerald-50 text-emerald-800 active:bg-emerald-100" },
+  { value: "medium", label: "Medium", icon: "🟡", color: "border-amber-200 bg-amber-50 text-amber-800 active:bg-amber-100" },
+  { value: "critical", label: "CRITICAL", icon: "🔴", color: "border-red-200 bg-red-50 text-red-800 active:bg-red-100" },
 ] as const;
+
 const CATEGORIES = [
-  { value: "electrical", label: "⚡ Electrical" },
-  { value: "mechanical", label: "🔩 Mechanical" },
-  { value: "hydraulic", label: "💧 Hydraulic" },
-  { value: "other", label: "🗂 Other" },
+  { value: "electrical", label: "Electrical", icon: Zap },
+  { value: "mechanical", label: "Mechanical", icon: Wrench },
+  { value: "hydraulic", label: "Hydraulic", icon: Droplet },
+  { value: "other", label: "Other Issue", icon: Grid },
 ] as const;
 
 const STATUS_STYLE: Record<string, string> = {
-  open: "bg-slate-200 text-slate-700",
-  assigned: "bg-indigo-100 text-indigo-700",
-  accepted: "bg-sky-100 text-sky-700",
-  in_progress: "bg-amber-100 text-amber-700",
-  resolved: "bg-emerald-100 text-emerald-700",
+  open: "bg-slate-100 text-slate-700 border-slate-200",
+  assigned: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  accepted: "bg-sky-50 text-sky-700 border-sky-200",
+  in_progress: "bg-amber-50 text-amber-800 border-amber-200",
+  resolved: "bg-emerald-50 text-emerald-700 border-emerald-200",
 };
+
 const STATUS_LABEL: Record<string, string> = {
   open: "Open",
   assigned: "Assigned",
@@ -150,14 +173,14 @@ export default function OperatorApp() {
       const res = await fetch(`/api/operator/machines/${encodeURIComponent(code)}`);
       const data = await res.json();
       if (!res.ok) {
-        setMachineError(data.error || "Machine not found.");
+        setMachineError(data.error || "Machine code not found in system.");
         setMachine(null);
       } else {
         setMachine(data.machine);
         setSuccessTicket(null);
       }
     } catch {
-      setMachineError("Network error. Please try again.");
+      setMachineError("Network error. Please check internet connection.");
       setMachine(null);
     } finally {
       setLoadingMachine(false);
@@ -192,7 +215,7 @@ export default function OperatorApp() {
       window.localStorage.setItem("op.machine", code);
       setTab("raise");
     } else {
-      setScannerErr("Could not read the machine code from this QR.");
+      setScannerErr("Could not read valid machine code from this QR image.");
     }
   }
 
@@ -201,7 +224,7 @@ export default function OperatorApp() {
     setScannerOpen(true);
     const ok = await loadQrLib();
     if (!ok) {
-      setScannerErr("Camera scanning is unavailable in this browser. Please enter the machine code manually.");
+      setScannerErr("Camera scanner library failed to initialize. Type code manually below.");
       return;
     }
     const Html5Qrcode = (window as unknown as {
@@ -229,7 +252,7 @@ export default function OperatorApp() {
         () => {}
       );
     } catch {
-      setScannerErr("Could not start the camera. Please allow camera access or enter the machine code manually.");
+      setScannerErr("Could not open camera. Allow camera permission or enter code manually.");
     }
   }
 
@@ -280,7 +303,7 @@ export default function OperatorApp() {
       setGeo(g);
     } catch {
       setGeo(null);
-      setGeoError("Location unavailable. Enable location access on this device (or use the demo tools below).");
+      setGeoError("Location access off. Enable GPS or choose location simulation below.");
     }
   }
 
@@ -291,14 +314,14 @@ export default function OperatorApp() {
 
   function geoBadge(): { text: string; cls: string } | null {
     if (!machine) return null;
-    if (!geo) return { text: "Checking location…", cls: "bg-slate-100 text-slate-500" };
+    if (!geo) return { text: "Checking location GPS…", cls: "bg-slate-100 text-slate-600 border-slate-200" };
     const dist = distanceMeters(machine.lat, machine.lng, geo.lat, geo.lng);
     if (dist <= machine.geoRadiusM) {
-      return { text: `✓ In zone · ${dist}m from machine`, cls: "bg-emerald-100 text-emerald-700" };
+      return { text: `✓ Location verified (${dist}m from machine)`, cls: "bg-emerald-50 text-emerald-800 border-emerald-200" };
     }
     return {
-      text: `Outside zone · ${dist}m away (max ${machine.geoRadiusM}m)`,
-      cls: "bg-red-100 text-red-700",
+      text: `Outside plant zone (${dist}m away, max ${machine.geoRadiusM}m)`,
+      cls: "bg-red-50 text-red-800 border-red-200",
     };
   }
 
@@ -309,15 +332,15 @@ export default function OperatorApp() {
     setFormError("");
     if (!machine) return;
     if (!category) {
-      setFormError("Please select a category.");
+      setFormError("Please select an issue category.");
       return;
     }
     if (description.trim().length < 5) {
-      setFormError("Please describe the issue (at least 5 characters).");
+      setFormError("Please enter a description (at least 5 characters).");
       return;
     }
     if (!/^\d{4}$/.test(pin)) {
-      setFormError("Enter your 4-digit PIN.");
+      setFormError("Enter your 4-digit Worker PIN.");
       return;
     }
 
@@ -327,7 +350,7 @@ export default function OperatorApp() {
       try {
         g = await getGeo();
       } catch {
-        setFormError("Your location could not be determined. Enable location access (or use demo tools) to raise a ticket.");
+        setFormError("GPS location unavailable. Please enable device location or select demo mode.");
         setSubmitting(false);
         return;
       }
@@ -346,7 +369,7 @@ export default function OperatorApp() {
       const res = await fetch("/api/operator/tickets", { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) {
-        setFormError(data.error || "Could not submit the ticket.");
+        setFormError(data.error || "Could not submit ticket.");
         if (data.reason === "location_unavailable") setGeoError("Enable location access on this device.");
         setSubmitting(false);
         return;
@@ -358,7 +381,7 @@ export default function OperatorApp() {
       });
       setSubmitting(false);
     } catch {
-      setFormError("Network error. Please try again.");
+      setFormError("Network connection issue. Please try again.");
       setSubmitting(false);
     }
   }
@@ -377,70 +400,101 @@ export default function OperatorApp() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setStatusError(data.error || "Lookup failed.");
+        setStatusError(data.error || "Worker PIN lookup failed.");
         setStatusLookup(null);
       } else {
         setStatusLookup(data);
       }
     } catch {
-      setStatusError("Network error.");
+      setStatusError("Network connection error.");
     } finally {
       setStatusLoading(false);
     }
   }
 
-  /* ---------------- Render ---------------- */
-
   const geoBadgeInfo = geoBadge();
 
   return (
-    <div className="min-h-screen bg-slate-50 max-w-md mx-auto flex flex-col pb-16">
-      {/* Header */}
-      <header className="bg-slate-900 text-white px-4 py-3 flex items-center gap-2 sticky top-0 z-40">
-        <span className="w-8 h-8 rounded-lg grid place-items-center bg-gradient-to-br from-blue-400 to-blue-600 text-sm">⚙</span>
-        <div className="flex-1">
-          <div className="font-bold text-sm leading-tight">Machinify</div>
-          <div className="text-[11px] text-slate-400 leading-tight">Machine Operator</div>
+    <div className="min-h-screen bg-slate-50 max-w-md mx-auto flex flex-col pb-16 antialiased font-sans border-x border-slate-200/80 shadow-xs">
+      {/* Top Header */}
+      <header className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-40 border-b border-slate-800">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 grid place-items-center text-white">
+            <Wrench className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="font-extrabold text-sm leading-tight text-white">Machinify</div>
+            <div className="text-[11px] text-blue-400 font-semibold leading-tight">Machine Operator</div>
+          </div>
         </div>
-        <a href="/" className="text-xs text-slate-300 hover:text-white">Home</a>
+        <Link
+          href="/"
+          className="flex items-center gap-1 text-xs text-slate-300 hover:text-white bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 transition-colors"
+        >
+          <Home className="w-3.5 h-3.5" />
+          <span>Home</span>
+        </Link>
       </header>
 
-      {/* Tabs */}
+      {/* Main Tabs */}
       <div className="grid grid-cols-2 bg-white border-b border-slate-200">
         <button
+          type="button"
           onClick={() => setTab("raise")}
-          className={`py-3 text-sm font-semibold ${tab === "raise" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-400"}`}
+          className={`py-3 text-xs font-bold transition-colors flex items-center justify-center gap-2 ${
+            tab === "raise"
+              ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
         >
-          📝 Raise Ticket
+          <FileText className="w-4 h-4" />
+          <span>Report Issue</span>
         </button>
         <button
+          type="button"
           onClick={() => setTab("status")}
-          className={`py-3 text-sm font-semibold ${tab === "status" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-400"}`}
+          className={`py-3 text-xs font-bold transition-colors flex items-center justify-center gap-2 ${
+            tab === "status"
+              ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
         >
-          🗂 My Tickets
+          <Clock className="w-4 h-4" />
+          <span>My Tickets</span>
         </button>
       </div>
 
-      {/* ============ RAISE TAB ============ */}
+      {/* ============ TAB: RAISE ISSUE ============ */}
       {tab === "raise" && (
         <div className="p-4 space-y-4">
-          {/* Identify machine */}
+          {/* Machine Identification Section */}
           {!machine && (
-            <div className="rounded-2xl bg-white border border-slate-200 p-5 text-center shadow-sm">
-              <div className="text-4xl">🔍</div>
-              <h2 className="font-bold text-lg mt-2">Identify your machine</h2>
-              <p className="text-sm text-slate-500 mt-1">
-                Scan the QR sticker on the machine with this phone, or type its code.
-              </p>
-              <button
-                onClick={openScanner}
-                className="w-full mt-4 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700"
-              >
-                📷 Scan machine QR sticker
-              </button>
-              <div className="flex items-center gap-3 my-3 text-xs text-slate-400">
-                <span className="flex-1 h-px bg-slate-200" /> or <span className="flex-1 h-px bg-slate-200" />
+            <div className="rounded-2xl bg-white border border-slate-200 p-5 text-center shadow-xs space-y-4">
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-blue-50 text-blue-600 grid place-items-center">
+                <QrCode className="w-6 h-6" />
               </div>
+              <div>
+                <h2 className="font-extrabold text-base text-slate-900">Scan Machine QR Sticker</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Point camera at the machine sticker or enter code below.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={openScanner}
+                className="w-full rounded-xl bg-blue-600 py-3.5 px-4 text-sm font-bold text-white shadow-xs hover:bg-blue-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              >
+                <Camera className="w-5 h-5" />
+                <span>Scan QR Code with Camera</span>
+              </button>
+
+              <div className="flex items-center gap-3 my-2 text-[11px] font-semibold text-slate-400">
+                <span className="flex-1 h-px bg-slate-200" />
+                <span>OR ENTER CODE</span>
+                <span className="flex-1 h-px bg-slate-200" />
+              </div>
+
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -454,110 +508,167 @@ export default function OperatorApp() {
               >
                 <input
                   name="code"
-                  placeholder="Machine code (e.g. M-CNC-001)"
-                  className="flex-1 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. M-CNC-001"
+                  className="flex-1 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <button type="submit" className="rounded-xl bg-slate-800 px-4 text-sm font-semibold text-white">
-                  Find
+                <button
+                  type="submit"
+                  className="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-slate-800 shrink-0"
+                >
+                  Lookup
                 </button>
               </form>
-              {machineError && <p className="text-sm text-red-600 mt-3">{machineError}</p>}
-              {loadingMachine && <p className="text-sm text-slate-400 mt-3">Loading machine…</p>}
+
+              {machineError && (
+                <div className="rounded-xl bg-red-50 text-red-700 border border-red-200 px-3 py-2 text-xs font-medium text-left">
+                  {machineError}
+                </div>
+              )}
+              {loadingMachine && (
+                <div className="text-xs text-slate-400 flex items-center justify-center gap-1.5">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Fetching machine info…</span>
+                </div>
+              )}
             </div>
           )}
 
-          {loadingMachine && machine && <p className="text-sm text-slate-400 text-center">Loading machine…</p>}
-
-          {/* Machine card */}
+          {/* Active Machine Card Header */}
           {machine && !loadingMachine && (
-            <div className="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm">
+            <div className="rounded-2xl bg-white border border-slate-200 p-4 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-700">
-                  ✓ Machine identified
-                </span>
-                <button onClick={resetMachine} className="text-xs font-semibold text-blue-600 hover:underline">
-                  Change
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Machine Verified</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={resetMachine}
+                  className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Change</span>
                 </button>
               </div>
-              <h2 className="font-bold text-lg mt-2">{machine.name}</h2>
-              <div className="text-xs text-slate-500 space-y-0.5 mt-1">
-                <div className="font-mono font-bold text-blue-700">{machine.code}</div>
-                {machine.model && <div>Model: {machine.model}</div>}
-                <div>🏭 {machine.factory}</div>
-                {machine.locationName && <div>📍 {machine.locationName}</div>}
+
+              <div>
+                <h2 className="font-extrabold text-lg text-slate-900 leading-snug">{machine.name}</h2>
+                <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500">
+                  <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                    {machine.code}
+                  </span>
+                  {machine.model && <span className="font-medium">Model: {machine.model}</span>}
+                </div>
               </div>
-              {machine.description && <p className="text-xs text-slate-400 mt-2">{machine.description}</p>}
+
+              <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 pt-2 border-t border-slate-100">
+                <div className="flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="truncate">{machine.factory}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="truncate">{machine.locationName || "Bay"}</span>
+                </div>
+              </div>
+
               {geoBadgeInfo && (
-                <div className={`mt-3 rounded-xl px-3 py-2 text-xs font-semibold ${geoBadgeInfo.cls}`}>{geoBadgeInfo.text}</div>
+                <div
+                  className={`rounded-xl px-3 py-2 text-xs font-bold border flex items-center gap-2 ${geoBadgeInfo.cls}`}
+                >
+                  <ShieldCheck className="w-4 h-4 shrink-0" />
+                  <span>{geoBadgeInfo.text}</span>
+                </div>
               )}
-              {geoError && <p className="text-xs text-amber-600 mt-2">{geoError}</p>}
+              {geoError && <p className="text-xs font-medium text-amber-700 bg-amber-50 p-2 rounded-lg">{geoError}</p>}
             </div>
           )}
 
-          {/* Ticket form */}
+          {/* Form to Report Issue */}
           {machine && !loadingMachine && !successTicket && (
-            <form onSubmit={submitTicket} className="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm space-y-4">
-              <h3 className="font-bold">Report the issue</h3>
+            <form onSubmit={submitTicket} className="rounded-2xl bg-white border border-slate-200 p-4 shadow-xs space-y-4">
+              <h3 className="font-extrabold text-sm text-slate-900 border-b border-slate-100 pb-2">
+                Report Breakdown / Issue
+              </h3>
 
-              {formError && <div className="rounded-xl bg-red-50 text-red-700 px-3 py-2.5 text-sm">{formError}</div>}
+              {formError && (
+                <div className="rounded-xl bg-red-50 border border-red-200 text-red-700 px-3 py-2.5 text-xs font-semibold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
 
+              {/* Urgency */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Urgency</label>
-                <div className="grid grid-cols-3 gap-1.5 bg-slate-100 rounded-xl p-1.5">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  1. Priority Level
+                </label>
+                <div className="grid grid-cols-3 gap-2">
                   {URGENCIES.map((u) => (
                     <button
                       key={u.value}
                       type="button"
                       onClick={() => setUrgency(u.value)}
-                      className={`rounded-lg py-2.5 text-xs font-bold transition-colors ${
+                      className={`rounded-xl py-3 px-2 text-xs font-extrabold border transition-all flex flex-col items-center justify-center gap-1 ${
                         urgency === u.value
-                          ? u.value === "low"
-                            ? "bg-emerald-600 text-white"
-                            : u.value === "medium"
-                            ? "bg-amber-500 text-white"
-                            : "bg-red-600 text-white"
-                          : "text-slate-500"
+                          ? `${u.color} ring-2 ring-blue-500`
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                       }`}
                     >
-                      {u.label}
+                      <span className="text-base">{u.icon}</span>
+                      <span>{u.label}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
+              {/* Category */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Category</label>
-                <div className="flex flex-wrap gap-2">
-                  {CATEGORIES.map((c) => (
-                    <button
-                      key={c.value}
-                      type="button"
-                      onClick={() => setCategory(c.value)}
-                      className={`rounded-full px-3.5 py-2 text-xs font-semibold border transition-colors ${
-                        category === c.value
-                          ? "border-blue-600 bg-blue-50 text-blue-700"
-                          : "border-slate-200 bg-white text-slate-500"
-                      }`}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  2. Issue Category
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {CATEGORIES.map((c) => {
+                    const Icon = c.icon;
+                    const active = category === c.value;
+                    return (
+                      <button
+                        key={c.value}
+                        type="button"
+                        onClick={() => setCategory(c.value)}
+                        className={`rounded-xl p-3 text-xs font-bold border transition-all flex items-center gap-2 text-left ${
+                          active
+                            ? "border-blue-600 bg-blue-50/80 text-blue-800 shadow-2xs"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        <Icon className={`w-4 h-4 ${active ? "text-blue-600" : "text-slate-400"}`} />
+                        <span>{c.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
+              {/* Description */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Describe the issue</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  3. Description
+                </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
-                  placeholder="What's wrong? e.g. unusual noise, leak, error code…"
-                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Describe what happened e.g. unusual vibration, hydraulic fluid leak, motor stalling..."
+                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-400"
                 />
               </div>
 
+              {/* Photo Input */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Fault / leak photo</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  4. Fault Photo (Optional)
+                </label>
                 <input
                   ref={photoInputRef}
                   type="file"
@@ -569,30 +680,34 @@ export default function OperatorApp() {
                 <button
                   type="button"
                   onClick={() => photoInputRef.current?.click()}
-                  className="w-full rounded-xl border-2 border-dashed border-slate-300 py-3 text-sm font-semibold text-slate-500 hover:border-blue-400 hover:text-blue-600"
+                  className="w-full rounded-xl border-2 border-dashed border-slate-300 py-3 px-4 text-xs font-bold text-slate-600 hover:border-blue-500 hover:bg-blue-50/30 transition-colors flex items-center justify-center gap-2"
                 >
-                  📷 {photo ? "Change photo" : "Take or choose a photo"}
+                  <Camera className="w-4 h-4 text-blue-600" />
+                  <span>{photo ? "Change Fault Photo" : "Take Photo with Phone Camera"}</span>
                 </button>
                 {photoPreview && (
-                  <div className="relative mt-2">
+                  <div className="relative mt-2 rounded-xl overflow-hidden border border-slate-200">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={photoPreview} alt="Fault preview" className="rounded-xl max-h-48 w-full object-cover" />
+                    <img src={photoPreview} alt="Fault preview" className="max-h-48 w-full object-cover" />
                     <button
                       type="button"
                       onClick={() => {
                         setPhoto(null);
                         if (photoInputRef.current) photoInputRef.current.value = "";
                       }}
-                      className="absolute top-2 right-2 rounded-full bg-black/60 text-white px-2.5 py-1 text-xs font-bold"
+                      className="absolute top-2 right-2 rounded-full bg-slate-900/80 text-white p-1 text-xs hover:bg-black"
                     >
-                      ✕
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 )}
               </div>
 
+              {/* Worker PIN */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Worker 4-digit PIN</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  5. Worker 4-Digit PIN
+                </label>
                 <input
                   type="tel"
                   inputMode="numeric"
@@ -601,51 +716,74 @@ export default function OperatorApp() {
                   value={pin}
                   onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
                   placeholder="••••"
-                  className="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-xl tracking-[0.6em] text-center font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-2xl tracking-[0.5em] text-center font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
                 />
               </div>
 
+              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full rounded-xl bg-blue-600 py-3.5 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60"
+                className="w-full rounded-xl bg-blue-600 py-4 text-sm font-extrabold text-white shadow-md hover:bg-blue-700 active:scale-[0.98] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
               >
-                {submitting ? "Submitting…" : "Submit ticket"}
+                {submitting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Submitting Ticket…</span>
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-4 h-4" />
+                    <span>Submit Maintenance Ticket</span>
+                  </>
+                )}
               </button>
 
-              {geoNote && <p className="text-xs text-slate-400">{geoNote}</p>}
+              {geoNote && <p className="text-[11px] text-slate-400 text-center">{geoNote}</p>}
             </form>
           )}
 
-          {/* Success */}
+          {/* Success Screen */}
           {successTicket && (
-            <div className="rounded-2xl bg-white border border-slate-200 p-6 text-center shadow-sm">
-              <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 text-emerald-600 grid place-items-center text-3xl">
-                ✓
+            <div className="rounded-2xl bg-white border border-slate-200 p-6 text-center shadow-xs space-y-4">
+              <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 text-emerald-600 grid place-items-center">
+                <CheckCircle2 className="w-10 h-10" />
               </div>
-              <h2 className="font-bold text-lg mt-4">Ticket submitted</h2>
-              <p className="text-sm text-slate-500 mt-1">
-                The manager will review it and assign a technician.
-              </p>
-              <div className="rounded-2xl bg-slate-50 p-4 mt-4">
-                <div className="text-xs text-slate-400">Ticket #</div>
-                <div className="font-mono text-xl font-extrabold text-blue-700">{successTicket.ticketNo}</div>
-                <div className="text-xs text-slate-400 mt-2">Submitted at</div>
-                <div className="text-sm font-semibold">{fmtTime(successTicket.createdAt)}</div>
-                <div className="text-xs text-slate-400 mt-2">Machine</div>
-                <div className="text-sm font-semibold">{successTicket.machineName}</div>
+              <div>
+                <h2 className="font-extrabold text-lg text-slate-900">Ticket Created Successfully</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Manager has been notified and will assign a technician shortly.
+                </p>
               </div>
-              <div className="flex gap-3 mt-5">
+
+              <div className="rounded-2xl bg-slate-50 border border-slate-200/80 p-4 text-left space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-slate-500 font-medium">Ticket #</span>
+                  <span className="font-mono text-base font-black text-blue-700">{successTicket.ticketNo}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-slate-500 font-medium">Machine</span>
+                  <span className="text-xs font-bold text-slate-800">{successTicket.machineName}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-slate-500 font-medium">Submitted</span>
+                  <span className="text-xs font-semibold text-slate-700">{fmtTime(successTicket.createdAt)}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
                 <button
+                  type="button"
                   onClick={() => {
                     setSuccessTicket(null);
                     resetMachine();
                   }}
-                  className="flex-1 rounded-xl border border-slate-300 py-2.5 text-sm font-semibold text-slate-600"
+                  className="flex-1 rounded-xl border border-slate-300 py-3 text-xs font-bold text-slate-700 hover:bg-slate-50"
                 >
                   Done
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setSuccessTicket(null);
                     setUrgency("medium");
@@ -655,9 +793,9 @@ export default function OperatorApp() {
                     setPhoto(null);
                     setFormError("");
                   }}
-                  className="flex-1 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+                  className="flex-1 rounded-xl bg-blue-600 py-3 text-xs font-bold text-white hover:bg-blue-700"
                 >
-                  Raise another
+                  Raise Another Ticket
                 </button>
               </div>
             </div>
@@ -666,9 +804,12 @@ export default function OperatorApp() {
           {/* Demo tools */}
           <div className="rounded-2xl border border-dashed border-slate-300 p-3">
             <details className="text-xs text-slate-400">
-              <summary className="cursor-pointer font-semibold">Testing tools (demo) — location simulation</summary>
-              <div className="mt-2 space-y-2">
-                <p>If your device has no GPS, simulate a location to test the geo-fence:</p>
+              <summary className="cursor-pointer font-bold text-slate-600 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>GPS Simulation (For Desktop Testing)</span>
+              </summary>
+              <div className="mt-2 space-y-2 text-slate-500">
+                <p>Simulate location if device has no GPS sensor:</p>
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -676,11 +817,11 @@ export default function OperatorApp() {
                       setDemoMode("at");
                       setGeoError("");
                     }}
-                    className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold ${
-                      demoMode === "at" ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-700"
+                    className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
+                      demoMode === "at" ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-800"
                     }`}
                   >
-                    At machine (pass)
+                    At Machine
                   </button>
                   <button
                     type="button"
@@ -688,19 +829,20 @@ export default function OperatorApp() {
                       setDemoMode("away");
                       setGeoError("");
                     }}
-                    className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold ${
-                      demoMode === "away" ? "bg-red-600 text-white" : "bg-red-100 text-red-700"
+                    className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
+                      demoMode === "away" ? "bg-red-600 text-white" : "bg-red-100 text-red-800"
                     }`}
                   >
-                    Away (fail)
+                    Away
                   </button>
                 </div>
                 {demoMode && (
                   <button
+                    type="button"
                     onClick={() => setDemoMode(null)}
-                    className="text-xs text-blue-600 font-semibold hover:underline"
+                    className="text-xs text-blue-600 font-bold hover:underline"
                   >
-                    Use real device location
+                    Reset GPS Mode
                   </button>
                 )}
               </div>
@@ -709,17 +851,28 @@ export default function OperatorApp() {
         </div>
       )}
 
-      {/* ============ STATUS TAB ============ */}
+      {/* ============ TAB: MY TICKETS ============ */}
       {tab === "status" && (
         <div className="p-4 space-y-4">
           {!statusLookup ? (
-            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
-              <h3 className="font-bold">Check ticket status</h3>
-              <p className="text-sm text-slate-500 mb-4">
-                Enter your 4-digit worker PIN to see the tickets you raised.
-              </p>
-              {statusError && <div className="rounded-xl bg-red-50 text-red-700 px-3 py-2.5 text-sm mb-3">{statusError}</div>}
-              <form onSubmit={lookupTickets}>
+            <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-xs space-y-4">
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-blue-50 text-blue-600 grid place-items-center">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <div className="text-center">
+                <h3 className="font-extrabold text-base text-slate-900">Check Your Raised Tickets</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Enter your 4-digit Worker PIN to view active status.
+                </p>
+              </div>
+
+              {statusError && (
+                <div className="rounded-xl bg-red-50 text-red-700 border border-red-200 px-3 py-2.5 text-xs font-semibold">
+                  {statusError}
+                </div>
+              )}
+
+              <form onSubmit={lookupTickets} className="space-y-3">
                 <input
                   type="tel"
                   inputMode="numeric"
@@ -728,84 +881,96 @@ export default function OperatorApp() {
                   value={statusPin}
                   onChange={(e) => setStatusPin(e.target.value.replace(/\D/g, ""))}
                   placeholder="••••"
-                  className="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-xl tracking-[0.6em] text-center font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-2xl tracking-[0.5em] text-center font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
                 />
                 <button
                   type="submit"
                   disabled={statusLoading || statusPin.length !== 4}
-                  className="w-full mt-3 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                  className="w-full rounded-xl bg-blue-600 py-3.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2"
                 >
-                  {statusLoading ? "Loading…" : "View my tickets"}
+                  {statusLoading ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
+                  <span>View My Tickets</span>
                 </button>
               </form>
             </div>
           ) : (
-            <>
-              <div className="flex items-center justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
                 <div>
-                  <div className="font-bold">{statusLookup.operator.name}</div>
-                  <div className="text-xs text-slate-400">Tickets you raised</div>
+                  <div className="font-extrabold text-sm text-slate-900">{statusLookup.operator.name}</div>
+                  <div className="text-xs text-slate-500">Worker PIN Verified</div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => {
                     setStatusLookup(null);
                     setStatusPin("");
                   }}
-                  className="text-xs font-semibold text-blue-600 hover:underline"
+                  className="text-xs font-bold text-blue-600 hover:underline"
                 >
-                  ← Different PIN
+                  Change PIN
                 </button>
               </div>
 
               {statusLookup.tickets.length === 0 ? (
-                <div className="rounded-2xl bg-white border border-slate-200 p-8 text-center text-sm text-slate-400">
-                  No tickets raised yet.
+                <div className="rounded-2xl bg-white border border-slate-200 p-8 text-center text-xs text-slate-400">
+                  No tickets logged under this PIN yet.
                 </div>
               ) : (
                 <div className="space-y-3">
                   {statusLookup.tickets.map((t) => (
-                    <div key={t.id} className="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm">
+                    <div key={t.id} className="rounded-2xl bg-white border border-slate-200 p-4 shadow-xs space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-xs font-bold text-blue-700">{t.ticketNo}</span>
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLE[t.status] || "bg-slate-200 text-slate-700"}`}>
+                        <span className="font-mono text-xs font-black text-blue-700">{t.ticketNo}</span>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold border ${
+                            STATUS_STYLE[t.status] || "bg-slate-100 text-slate-700 border-slate-200"
+                          }`}
+                        >
                           {STATUS_LABEL[t.status] || t.status}
                         </span>
                       </div>
-                      <div className="font-semibold text-sm mt-1.5">{t.machine.name}</div>
-                      <div className="text-xs text-slate-500 mt-0.5">
+                      <div className="font-bold text-sm text-slate-900">{t.machine.name}</div>
+                      <div className="text-[11px] text-slate-400">
                         {t.machine.code} · {fmtTime(t.createdAt)}
                       </div>
-                      <p className="text-sm text-slate-600 mt-2 line-clamp-2">{t.description}</p>
+                      <p className="text-xs text-slate-600 line-clamp-2 bg-slate-50 p-2 rounded-lg">
+                        {t.description}
+                      </p>
                       {t.resolvedAt && (
-                        <div className="text-xs text-emerald-600 mt-2 font-semibold">
-                          Resolved {fmtTime(t.resolvedAt)}
+                        <div className="text-xs text-emerald-700 font-bold flex items-center gap-1 pt-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Resolved at {fmtTime(t.resolvedAt)}</span>
                         </div>
                       )}
                     </div>
                   ))}
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       )}
 
       {/* ============ SCANNER MODAL ============ */}
       {scannerOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={closeScanner}>
-          <div className="bg-white rounded-2xl w-full max-w-sm p-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-bold text-sm">Scan machine QR sticker</h3>
-              <button onClick={closeScanner} className="text-slate-400 hover:text-slate-700 font-bold">
-                ✕
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={closeScanner}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-3 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-sm text-slate-900">Scan Machine QR Code</h3>
+              <button type="button" onClick={closeScanner} className="p-1 text-slate-400 hover:text-slate-800">
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-xs text-slate-400 mb-3">Point the camera at the QR sticker on the machine.</p>
-            <div id={scannerDivId} className="w-full overflow-hidden rounded-xl" />
-            {scannerErr && <div className="rounded-xl bg-red-50 text-red-700 px-3 py-2.5 text-sm mt-3">{scannerErr}</div>}
-            <p className="text-xs text-slate-400 mt-3">
-              No camera? Enter the machine code manually on the previous screen.
-            </p>
+            <p className="text-xs text-slate-500">Align camera with machine sticker QR code.</p>
+            <div id={scannerDivId} className="w-full overflow-hidden rounded-xl border border-slate-200" />
+            {scannerErr && (
+              <div className="rounded-xl bg-red-50 text-red-700 p-3 text-xs font-semibold">{scannerErr}</div>
+            )}
           </div>
         </div>
       )}

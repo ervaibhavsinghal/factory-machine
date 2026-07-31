@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import AssignButton, { type TechnicianOption } from "@/components/maintenance/AssignButton";
 import TechActions from "@/components/maintenance/TechActions";
+import { Ticket as TicketIcon, Clock, User, Wrench, ChevronRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -50,38 +51,59 @@ export default async function TicketsPage() {
     tickets.sort((a: any, b: any) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
 
     return (
-      <div>
-        <h1 className="text-2xl font-bold">My Tickets</h1>
-        <p className="text-sm text-slate-500 mb-6">Tickets assigned to you</p>
+      <div className="space-y-6">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+          <h1 className="text-xl font-black text-slate-900 flex items-center gap-2">
+            <TicketIcon className="w-5 h-5 text-blue-600" />
+            <span>My Assigned Tickets</span>
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">Accept, start work and log resolutions for assigned machine breakdowns.</p>
+        </div>
 
         {tickets.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-400">
-            No tickets assigned to you yet.
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-400 font-medium text-xs">
+            No tickets assigned to you at the moment.
           </div>
         ) : (
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
             {tickets.map((t: any) => (
-              <div key={t.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div key={t.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-xs font-bold text-blue-700">{t.ticketNo}</span>
+                  <span className="font-mono text-xs font-black text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded">
+                    {t.ticketNo}
+                  </span>
                   <Badge kind="status" value={t.status} />
                 </div>
-                <Link href={`/dashboard/maintenance/tickets/${t.id}`}>
-                  <h3 className="font-bold text-[15px] mt-2 hover:text-blue-700">{t.machine.name}</h3>
-                </Link>
-                <div className="text-xs text-slate-400 mt-0.5">
-                  {t.machine.facility.name} · {t.machine.locationName || "—"}
+                <div>
+                  <Link href={`/dashboard/maintenance/tickets/${t.id}`}>
+                    <h3 className="font-extrabold text-sm text-slate-900 hover:text-blue-600 transition-colors">
+                      {t.machine.name}
+                    </h3>
+                  </Link>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    {t.machine.facility.name} · {t.machine.locationName || "Bay"}
+                  </div>
                 </div>
-                <p className="text-sm text-slate-600 mt-2 line-clamp-3">{t.description}</p>
-                <div className="flex items-center gap-2 mt-3">
+
+                <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 line-clamp-3">
+                  {t.description}
+                </p>
+
+                <div className="flex items-center gap-2">
                   <Badge kind="urgency" value={t.urgency} />
                   <Badge kind="category" value={t.category} />
                 </div>
-                <div className="mt-4">
+
+                <div className="pt-2 border-t border-slate-100">
                   <TechActions ticketId={t.id} status={t.status} />
                 </div>
-                <div className="text-xs text-slate-400 mt-3">
-                  {timeAgo(t.createdAt)} · by {t.operatorName || "Operator"}
+
+                <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1">
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-slate-400" />
+                    <span>{timeAgo(t.createdAt)}</span>
+                  </span>
+                  <span>Operator: {t.operatorName || "Worker"}</span>
                 </div>
               </div>
             ))}
@@ -117,33 +139,53 @@ export default async function TicketsPage() {
     return oa - ob;
   });
 
-  const col = (title: string, color: string, list: Card[], count: number) => (
-    <div className="rounded-2xl bg-slate-100 p-3 min-h-[160px]">
-      <h4 className="flex items-center gap-2 px-1 pb-3 text-xs font-bold uppercase tracking-wide text-slate-500">
-        <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
-        {title}
-        <span className="rounded-full bg-white px-2 py-0.5 text-[11px]">{count}</span>
-      </h4>
-      <div className="space-y-3">
+  const renderColumn = (title: string, colorDot: string, list: Card[], count: number) => (
+    <div className="rounded-2xl bg-slate-100/80 border border-slate-200/80 p-3 flex flex-col space-y-3 min-h-[500px]">
+      <div className="flex items-center justify-between px-2 pt-1 pb-2">
+        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-700">
+          <span className={`h-2.5 w-2.5 rounded-full ${colorDot}`} />
+          <span>{title}</span>
+        </div>
+        <span className="rounded-full bg-white border border-slate-200 text-slate-800 text-[11px] font-black px-2 py-0.5">
+          {count}
+        </span>
+      </div>
+
+      <div className="space-y-3 flex-1">
         {list.map((t) => (
-          <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+          <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-2 hover:border-slate-300 transition-colors">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[11px] font-bold text-blue-700">{t.ticketNo}</span>
+              <span className="font-mono text-[11px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                {t.ticketNo}
+              </span>
               <Badge kind="urgency" value={t.urgency} />
             </div>
+
             <Link href={`/dashboard/maintenance/tickets/${t.id}`}>
-              <div className="font-semibold text-sm mt-1.5 hover:text-blue-700">{t.machine.name}</div>
+              <div className="font-bold text-xs text-slate-900 hover:text-blue-600 transition-colors flex items-center justify-between group">
+                <span>{t.machine.name}</span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600" />
+              </div>
             </Link>
-            <div className="text-[11px] text-slate-400">{CATEGORY_LABELS[t.category]} · {timeAgo(t.createdAt)}</div>
-            <div className="text-[11px] text-slate-400">by {t.operatorName || "Operator"}</div>
-            <div className="flex items-center justify-between gap-2 mt-2.5">
+
+            <div className="text-[11px] text-slate-500">
+              {CATEGORY_LABELS[t.category]} · {timeAgo(t.createdAt)}
+            </div>
+
+            <div className="text-[11px] text-slate-400">by {t.operatorName || "Worker"}</div>
+
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 text-[11px]">
               {t.assignedTo ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500">
-                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" /> {t.assignedTo.name}
+                <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
+                  <User className="w-3 h-3 text-indigo-500" />
+                  <span>{t.assignedTo.name}</span>
                 </span>
               ) : (
-                <span className="text-[11px] font-medium text-amber-600">Unassigned</span>
+                <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                  Unassigned
+                </span>
               )}
+
               {["open", "assigned"].includes(t.status) && (
                 <AssignButton
                   ticketId={t.id}
@@ -155,22 +197,25 @@ export default async function TicketsPage() {
             </div>
           </div>
         ))}
+
         {list.length === 0 && (
-          <div className="text-center text-xs text-slate-400 py-6">Nothing here</div>
+          <div className="text-center text-xs text-slate-400 py-12 font-medium">No tickets in this column</div>
         )}
       </div>
     </div>
   );
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold">Ticket Board</h1>
-      <p className="text-sm text-slate-500 mb-6">Approve, assign and track maintenance tickets</p>
+    <div className="space-y-6">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+        <h1 className="text-xl font-black text-slate-900">Maintenance Ticket Board</h1>
+        <p className="text-xs text-slate-500 mt-1">Assign, track, and approve factory breakdown tickets in real time.</p>
+      </div>
 
       <div className="grid lg:grid-cols-3 gap-4">
-        {col("Open", "bg-red-400", open, open.length)}
-        {col("In Progress", "bg-amber-400", inProgress, inProgress.length)}
-        {col("Resolved", "bg-emerald-400", resolved, resolved.length)}
+        {renderColumn("Open & Approved", "bg-red-500", open, open.length)}
+        {renderColumn("In Progress", "bg-amber-500", inProgress, inProgress.length)}
+        {renderColumn("Resolved", "bg-emerald-500", resolved, resolved.length)}
       </div>
     </div>
   );
