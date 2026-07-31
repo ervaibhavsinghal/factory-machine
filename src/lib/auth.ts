@@ -9,10 +9,10 @@ export async function createSession(user: SessionUser): Promise<string> {
     const store = await cookies();
     store.set(SESSION_COOKIE, token, {
       httpOnly: true,
-      sameSite: "none",
+      sameSite: "lax",
       path: "/",
       maxAge: SESSION_TTL,
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
     });
   } catch (e) {
     console.error("Error setting cookie in createSession:", e);
@@ -24,6 +24,13 @@ export async function destroySession(): Promise<void> {
   try {
     const store = await cookies();
     store.delete(SESSION_COOKIE);
+    store.set(SESSION_COOKIE, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+      expires: new Date(0),
+    });
   } catch (e) {
     console.error("Error deleting cookie in destroySession:", e);
   }

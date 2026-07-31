@@ -4,6 +4,8 @@ import { ROLE_LABELS } from "@/lib/constants";
 import Sidebar from "@/components/dashboard/Sidebar";
 import HeaderNav from "@/components/dashboard/HeaderNav";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
   if (!session) redirect("/login");

@@ -34,7 +34,6 @@ export default function LoginPage() {
       }
       if (data.token) {
         try {
-          document.cookie = `fm.session=${data.token}; path=/; max-age=43200; SameSite=None; Secure`;
           document.cookie = `fm.session=${data.token}; path=/; max-age=43200; SameSite=Lax`;
         } catch {
           // ignore
@@ -44,8 +43,7 @@ export default function LoginPage() {
         data.user.role === "technician"
           ? "/dashboard/maintenance/tickets"
           : "/dashboard";
-      const redirectUrl = data.token ? `${dest}?token=${encodeURIComponent(data.token)}` : dest;
-      window.location.href = redirectUrl;
+      window.location.href = dest;
     } catch {
       setError("Something went wrong. Please check your connection.");
       setBusy(false);
