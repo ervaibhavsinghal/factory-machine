@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  owner
+  manager
+  technician
+  guard // reserved for future Module 2 (Gate Management)
+}
+
+enum MachineStatus {
+  operational
+  maintenance
+  down
+}
+
+enum TicketStatus {
+  open
+  assigned
+  accepted
+  in_progress
+  resolved
+}
+
+enum Urgency {
+  low
+  medium
+  critical
+}
+
+enum Category {
+  electrical
+  mechanical
+  hydraulic
+  other
+}
+
+model Facility {
+  id         String   @id @default(cuid())
+  name       String
+  code       String   @unique
+  type       String   @default("factory") // factory | warehouse
+  address    String   @default("")
+  lat        Float
+  lng        Float
+  geoRadiusM Int      @default(100)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  machines  Machine[]
+  operators MachineOperator[]
+  users     User[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  facilityId   String?
+  facility     Facility? @relation(fields: [facilityId], references: [id])
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  createdMachines   Machine[]          @relation("CreatedBy")
+  uploadedDocuments MachineDocument[]  @relation("UploadedBy")
+  approvedTickets   MaintenanceTicket[] @relation("ApprovedBy")
+  assignedTickets   MaintenanceTicket[] @relation("AssignedTo")
+}
+
+model Machine {
+  id           String        @id @default(cuid())
+  code         String        @unique
+  name         String
+  model        String        @default("")
+  facilityId   String
+  facility     Facility      @relation(fields: [facilityId], references: [id])
+  locationName String        @default("")
+  lat          Float
+  lng          Float
+  geoRadiusM   Int           @default(100)
+  description  String        @default("")
+  status       MachineStatus @default(operational)
+  createdById  String?
+  createdBy    User?         @relation("CreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  documents MachineDocument[]
+  tickets   MaintenanceTicket[]
+}
+
+model MachineDocument {
+  id           String   @id @default(cuid())
+  machineId    String
+  machine      Machine  @relation(fields: [machineId], references: [id])
+  filename     String
+  originalName String
+  mimeType     String   @default("application/octet-stream")
+  size         Int      @default(0)
+  uploadedById String?
+  uploadedBy   User?    @relation("UploadedBy", fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model MachineOperator {
+  id         String    @id @default(cuid())
+  facilityId String?
+  facility   Facility? @relation(fields: [facilityId], references: [id])
+  name       String
+  pinHash    String    @unique
+  department String    @default("")
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model MaintenanceTicket {
+  id              String       @id @default(cuid())
+  ticketNo        String       @unique
+  machineId       String
+  machine         Machine      @relation(fields: [machineId], references: [id])
+  operatorName    String       @default("")
+  operatorPinHash String       @default("")
+  urgency         Urgency
+  category        Category
+  description     String
+  photoPath       String       @default("")
+  lat             Float?
+  lng             Float?
+  accuracy        Float?
+  status          TicketStatus @default(open)
+  assignedToId    String?
+  assignedTo      User?        @relation("AssignedTo", fields: [assignedToId], references: [id])
+  approvedById    String?
+  approvedBy      User?        @relation("ApprovedBy", fields: [approvedById], references: [id])
+  resolution      String       @default("")
+  createdAt       DateTime     @default(now())
+  acceptedAt      DateTime?
+  startedAt       DateTime?
+  resolvedAt      DateTime?
+}
